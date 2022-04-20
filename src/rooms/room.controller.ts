@@ -1,32 +1,48 @@
-import { Controller, Get } from '@nestjs/common';
-import { RoomUser } from './room.models';
+import {Body, Controller, Get, HttpException, Param, Post} from '@nestjs/common';
+import {Room, RoomUser, Song} from './room.models';
 import {RoomService} from "./room.service";
 import { Logger } from '@nestjs/common';
+import {DownloadResult, SongsService} from "../songs/songs.service";
 
 @Controller('rooms')
 export class RoomController {
-  constructor(private readonly roomService: RoomService) {}
+  constructor(private readonly roomService: RoomService,private readonly songsService: SongsService ) {}
 
   @Get()
   getRooms(): string {
-    return this.roomService.getRooms();
+      return this.roomService.getRooms();
+  }
+
+  @Get(":id")
+  getRoom(@Param('id') id:number ) : Room{
+      const room = this.roomService.getRoomById(id);
+      if(!room){
+        throw new HttpException("No room found", 404);
+      }else{
+        return room;
+      }
   }
 
   @Get('users')
   getUsers(): RoomUser[] {
-    return this.roomService.getUsersForRoom(1);
+      return this.roomService.getUsersForRoom(1);
   }
 
-  @Get('adduser')
-  addUser(): void {
-    const users = this.roomService.getUsersForRoom(1);
+  @Post(':id/add-user')
+  addUser(@Param('id') id:number): RoomUser {
+    this.getRoom(id);
+    return this.roomService.addUserToRoom(id, this.generateDutchName());
+  }
 
-    var largestId:number = 0;
-    users.forEach(function(elem){
-      largestId = Math.max(elem.id, largestId);
-    });
-
-    this.roomService.addUserToRoom(1, new RoomUser(largestId+1 , this.generateDutchName()));
+  @Post(':id/add-song')
+  addSong(@Param('id') id:number, @Body('url') url: string): Song {
+    this.getRoom(id);
+    const result = this.songsService.downloadSong(url);
+    if(!result.success){
+      throw new HttpException("Error trying to download song", 400);
+    }
+    const newSong = new Song(result.key, "?", result.progress == 100, 0);
+    return this.roomService.addSongToRoom(id, newSong);
   }
 
   generateDutchName() : string{
