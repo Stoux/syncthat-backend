@@ -36,12 +36,16 @@ export class SongsService {
             return this.songs[key];
         }
 
-        this.songs[key] = new DownloadResult(
+        const result = new DownloadResult(
             true,
             info.id,
             info.extractor,
             0,
-        )
+        );
+        this.songs[key] = result
+
+        result.duration = this.parseDurationString(info.duration_string);
+        result.title = info.title;
 
         const download = spawn(ytdlp, ['-f', 'bestaudio/best', '-o', '%(extractor)s-%(id)s', url], {
             cwd: dir,
@@ -69,6 +73,19 @@ export class SongsService {
         return this.songs[key];
     }
 
+    private parseDurationString(duration: string): number {
+        const split = /(?:(?:(\d+):)?(\d+):)?(\d+)$/.exec(duration);
+        if (!split) {
+            return 0;
+        }
+
+        const hours = split[1] ? parseInt(split[1]) : 0;
+        const mins = split[2] ? parseInt(split[2]) : 0;
+        const secs = split[3] ? parseInt(split[3]) : 0;
+
+        return ((hours * 60 * 60) + (mins * 60) + secs);
+    }
+
     getSongStatus(key: string): DownloadResult|null {
         return this.songs.hasOwnProperty(key) ? this.songs[key] : null;
     }
@@ -85,6 +102,8 @@ export class DownloadResult {
     success: boolean
     id?: string|number
     extractor?: string
+    duration?: number
+    title?: string;
     progress?: number
     key?: string;
 
@@ -102,4 +121,7 @@ export class DownloadResult {
 interface YoutubeDlJsonDump {
     id: string,
     extractor: string,
+    duration_string: string,
+    title: string,
+    description?: string,
 }
