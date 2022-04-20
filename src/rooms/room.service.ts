@@ -1,22 +1,24 @@
 import { Injectable } from '@nestjs/common';
+import {Room, RoomUser} from "./room.models";
 
 @Injectable()
 export class RoomService {
 
-  id: number;
-//  users: User[];
-
-  rooms: any[] = [
-    {
-      id: 1,
-    }
+  rooms: Room[] = [
+    new Room(1, 'ROOMPIE')
   ]
 
   getRooms(): any {
     return this.rooms;
   }
 
-  addUser(room:number): any {
-    return true;
+  addUserToRoom(roomId: number, user: RoomUser) {
+    this.rooms[0].users.push(user);
   }
+
+  getUsersForRoom(roomNumber : number): RoomUser[] {
+    return this.rooms[0].users;
+    return this.rooms.find(room => room.id === roomNumber).users;
+  }
+
 }
