@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import {SongsModule} from "./songs/songs.module";
+import { RoomModule } from "./rooms/room.module";
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import {SongsModule} from "./songs/songs.module";
           isGlobal: true,
       }),
       SongsModule,
+      RoomModule,
   ],
   controllers: [AppController],
   providers: [AppService],
