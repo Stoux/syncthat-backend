@@ -66,5 +66,11 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "workspaces": {
+    "packages": [],
+    "nohoist": [
+      "**/@nestjs/**"
+    ]
   }
 }
