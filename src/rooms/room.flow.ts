@@ -121,7 +121,13 @@ export class RoomHandler {
 
         const downloadCallback = (result: DownloadResult) => {
             // Find the song.
-            const song = this.songsQueue.get().find(s => s.key === result.key);
+            let song = this.songsQueue.get().find(s => s.key === result.key);
+            if (!song) {
+                const currentSong = this.currentSong.get();
+                if (currentSong && currentSong.song && currentSong.song.key === result.key) {
+                    song = currentSong.song;
+                }
+            }
             if (!song) {
                 // No longer in queue?
                 result.unsubscribeFromProgress(downloadCallback);
@@ -139,12 +145,22 @@ export class RoomHandler {
 
             // Update the status
             song.downloadProgress = result.progress;
+            song.waveformGenerated = result.waveformGenerated === undefined ? false : result.waveformGenerated;
+
             song.ready = result.success === true;
             this.songsQueue.trigger();
 
             // Check if we can pop it from the queue
             if (result.success) {
                 this.possiblyPlayNextSong();
+            }
+
+            // Check if the current is us
+            const currentSong = this.currentSong.get();
+            console.log('Current', currentSong ? currentSong.song : null);
+            if (currentSong && currentSong.song && currentSong.song.key === result.key) {
+                console.log('Retrigger want current song, wats die progress tho', song.waveformGenerated);
+                this.currentSong.trigger();
             }
         };
 

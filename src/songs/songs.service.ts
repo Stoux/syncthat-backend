@@ -61,7 +61,7 @@ export class SongsService {
         }
 
         // Start download task
-        const download = spawn(ytdlp, ['--extract-audio', '--audio-format', 'mp3', '-o', '%(extractor)s-%(id)s', url], {
+        const download = spawn(ytdlp, ['--extract-audio', '--audio-format', 'mp3', '-o', '%(extractor)s-%(id)s.mp3', url], {
             cwd: dir,
         });
 
@@ -89,7 +89,7 @@ export class SongsService {
         const dir = this.configService.get<string>('DOWNLOAD_DIR');
 
         // Start geenratingtask
-        const generateWaveform = spawn(audiowaveform, ['-i' ,result.key, '-o', result.key+".json"], {
+        const generateWaveform = spawn(audiowaveform, ['-i' ,result.key + '.mp3', '-o', result.key+".json"], {
             cwd: dir,
         });
 
