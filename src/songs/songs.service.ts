@@ -61,7 +61,7 @@ export class SongsService {
         }
 
         // Start download task
-        const download = spawn(ytdlp, ['-f', 'bestaudio/best', '-o', '%(extractor)s-%(id)s', url], {
+        const download = spawn(ytdlp, ['--extract-audio', '--audio-format', 'mp3', '-o', '%(extractor)s-%(id)s', url], {
             cwd: dir,
         });
 
@@ -76,10 +76,33 @@ export class SongsService {
         download.on('exit', (code, signal) => {
             console.log('Finished download', code, signal);
             result.setProgress(code === 0 ? DownloadResult.PROGRESS_SUCCESS : DownloadResult.PROGRESS_FAILED);
+            if(code === 0){
+                this.drawWaveForm(result);
+            }
         });
 
         return result;
     }
+
+    drawWaveForm(result: DownloadResult): boolean{
+        const audiowaveform = this.configService.get<string>('AUDIOWAVEFORM_PATH');
+        const dir = this.configService.get<string>('DOWNLOAD_DIR');
+
+        // Start geenratingtask
+        const generateWaveform = spawn(audiowaveform, ['-i' ,result.key, '-o', result.key+".json"], {
+            cwd: dir,
+        });
+
+        generateWaveform.on('exit', code => {
+            if(code ===  0){
+                result.waveformGenerated = true;
+                result.setProgress(DownloadResult.PROGRESS_SUCCESS);
+            }
+        })
+        return true;
+    }
+
+
 
     private static parseDurationString(duration: string): number {
         const split = /(?:(?:(\d+):)?(\d+):)?(\d+)$/.exec(duration);
@@ -118,6 +141,7 @@ export class DownloadResult {
     title?: string;
     progress?: number
     key?: string;
+    waveformGenerated?: boolean;
     private callbacks: ((result: DownloadResult) => void)[];
 
 
