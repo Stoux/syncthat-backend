@@ -11,7 +11,10 @@ export class SongsService {
         this.songs = {};
     }
 
-    downloadSong(url : string): DownloadResult {
+    downloadSong(
+        url : string,
+        progressCallback?: (result: DownloadResult) => void,
+    ): DownloadResult {
 
         const dir = this.configService.get<string>('DOWNLOAD_DIR');
         const ytdlp = this.configService.get<string>('YT_DLP_PATH');
@@ -20,33 +23,44 @@ export class SongsService {
         if (dumpJson.error) {
             console.log(dumpJson.error, dumpJson.error);
             return new DownloadResult(
-                false,
                 undefined,
                 undefined,
-                -1
+                DownloadResult.PROGRESS_FAILED,
             );
         }
 
-
+        // Parse the key & data
         const json = dumpJson.output.toString().replace(/^[\s,]*(\{.+\})[\s,]*$/, '$1');
         const info: YoutubeDlJsonDump = JSON.parse(json);
         const key = info.extractor + '-' + info.id;
 
+        // Check if we're already downloading the song / have already downloaded the song
         if (this.songs.hasOwnProperty(key)) {
-            return this.songs[key];
+            const foundSong = this.songs[key];
+            if (foundSong.isDownloading() && progressCallback) {
+                // Still downloading
+                foundSong.subscribeToProgress(progressCallback);
+            }
+
+            return foundSong;
         }
 
         const result = new DownloadResult(
-            true,
             info.id,
             info.extractor,
             0,
         );
         this.songs[key] = result
 
-        result.duration = this.parseDurationString(info.duration_string);
+        result.duration = SongsService.parseDurationString(info.duration_string);
         result.title = info.title;
 
+        // Add progress listener
+        if (progressCallback) {
+            result.subscribeToProgress(progressCallback);
+        }
+
+        // Start download task
         const download = spawn(ytdlp, ['-f', 'bestaudio/best', '-o', '%(extractor)s-%(id)s', url], {
             cwd: dir,
         });
@@ -55,25 +69,19 @@ export class SongsService {
             let line = chunk.toString();
             const match = /\[download]\s+([\d.]+)% of.+/.exec(line);
             if (match) {
-                this.songs[key].progress = parseFloat(match[1]);
-                // TODO: Send websocket events
+                result.setProgress(parseFloat(match[1]));
             }
         });
 
         download.on('exit', (code, signal) => {
             console.log('Finished download', code, signal);
-            if (code === 0) {
-                this.songs[key].progress = 100;
-            } else {
-                this.songs[key].progress = -1;
-                this.songs[key].success = false;
-            }
+            result.setProgress(code === 0 ? DownloadResult.PROGRESS_SUCCESS : DownloadResult.PROGRESS_FAILED);
         });
 
-        return this.songs[key];
+        return result;
     }
 
-    private parseDurationString(duration: string): number {
+    private static parseDurationString(duration: string): number {
         const split = /(?:(?:(\d+):)?(\d+):)?(\d+)$/.exec(duration);
         if (!split) {
             return 0;
@@ -99,21 +107,54 @@ export class SongsService {
 }
 
 export class DownloadResult {
-    success: boolean
+
+    static readonly PROGRESS_FAILED = -1;
+    static readonly PROGRESS_SUCCESS = 100;
+
+    success: boolean|undefined
     id?: string|number
     extractor?: string
     duration?: number
     title?: string;
     progress?: number
     key?: string;
+    private callbacks: ((result: DownloadResult) => void)[];
 
 
-    constructor(success: boolean, id: string | number, extractor: string, progress: number) {
-        this.success = success;
+    constructor(id: string | number, extractor: string, progress?: number) {
         this.id = id;
         this.extractor = extractor;
-        this.progress = progress;
         this.key = id ? extractor +'-' + id : null;
+        this.callbacks = [];
+        this.setProgress(progress);
+    }
+
+    /**
+     * Is currently being downloaded.
+     */
+    public isDownloading(): boolean {
+        return this.progress >= 0 && this.progress < 100;
+    }
+
+    public setProgress(progress: number) {
+        this.progress = progress;
+        if (progress === DownloadResult.PROGRESS_FAILED) {
+            this.success = false;
+        } else if (progress === DownloadResult.PROGRESS_SUCCESS) {
+            this.success = true;
+        } else if (progress !== undefined && (progress < 0 || progress > DownloadResult.PROGRESS_SUCCESS)) {
+            throw 'Invalid progress amount';
+        }
+
+        this.callbacks.forEach(c => c(this));
+    }
+
+    public subscribeToProgress(callback: (result: DownloadResult) => void) {
+        this.callbacks.push(callback);
+    }
+
+    public unsubscribeFromProgress(callback: (result: DownloadResult) => void) {
+        this.callbacks = this.callbacks.filter(c => c !== callback);
     }
 
 }
