@@ -17,7 +17,7 @@ export class RoomService {
   }
 
   addUserToRoom(roomId: number, username: string) : RoomUser {
-    const newUser = new RoomUser((Math.random() + 1).toString(36).substring(2), username);
+    const newUser = new RoomUser((Math.random() + 1).toString(36).substring(2), username, username);
     this.rooms.find(room => room.id == roomId).users.push(newUser);
     return newUser;
   }

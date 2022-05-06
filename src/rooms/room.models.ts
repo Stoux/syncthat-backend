@@ -24,13 +24,23 @@ export class Room {
 }
 
 export class RoomUser {
-  id: string;
+  privateId: string;
+  publicId: string;
   name: string;
 
-  constructor(id:string, name:string) {
-    this.id = id;
+  constructor(privateId: string, publicId: string, name: string) {
+    this.privateId = privateId;
+    this.publicId = publicId;
     this.name = name;
   }
+
+  publicInfo() {
+    return {
+      id: this.publicId,
+      name: this.name,
+    }
+  }
+
 }
 
 export class Song {
@@ -39,6 +49,8 @@ export class Song {
   downloadProgress: number;
   ready: boolean;
   durationInSeconds: number;
+  waveformGenerated?: boolean;
+
   /** Public ID of the user who requested it */
   requestedBy?: string;
 
@@ -48,6 +60,7 @@ export class Song {
     this.ready = ready;
     this.durationInSeconds = durationInSeconds;
     this.downloadProgress = 0;
+    this.waveformGenerated = false;
   }
 }
 
