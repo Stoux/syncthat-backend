@@ -8,6 +8,9 @@ SyncThat backend based on [Nest](https://github.com/nestjs/nest) framework TypeS
 $ npm install
 ```
 
+You'll require binaries for [YouTube-DL](https://github.com/ytdl-org/youtube-dl) / [YT-DLP](https://github.com/yt-dlp/yt-dlp) 
+& BBC's [audiowaveform](https://github.com/bbc/audiowaveform). After downloading set the paths to the binaries in a .env file.
+
 ## Running the app
 
 ```bash
@@ -15,7 +18,7 @@ $ npm install
 $ npm run start
 
 # watch mode
-$ npm run start:dev
+$ npm run watch
 
 # production mode
 $ npm run start:prod
