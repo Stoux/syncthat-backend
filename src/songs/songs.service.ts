@@ -1,6 +1,7 @@
 import {HttpException, HttpStatus, Injectable} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
 import {spawn, spawnSync} from 'child_process';
+import * as fs from "fs";
 
 @Injectable()
 export class SongsService {
@@ -55,10 +56,28 @@ export class SongsService {
         result.duration = SongsService.parseDurationString(info.duration_string);
         result.title = info.title;
 
+        if (fs.existsSync(`${dir}/${result.key}.mp3`)) {
+            console.log('File already downloaded');
+            result.setProgress(DownloadResult.PROGRESS_SUCCESS);
+
+            if (fs.existsSync(`${dir}/${result.key}.json`)) {
+                result.waveformGenerated = true;
+            } else {
+                if (progressCallback) {
+                    result.subscribeToProgress(progressCallback);
+                }
+
+                this.drawWaveForm(result);
+            }
+
+            return result;
+        }
+
         // Add progress listener
         if (progressCallback) {
             result.subscribeToProgress(progressCallback);
         }
+
 
         // Start download task
         const download = spawn(ytdlp, ['--extract-audio', '--audio-format', 'mp3', '-o', '%(extractor)s-%(id)s.mp3', url], {
