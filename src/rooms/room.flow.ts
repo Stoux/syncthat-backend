@@ -179,7 +179,8 @@ export class RoomHandler {
 
         // Add the song to the end of the queue
         this.songsQueue.modify(songs => {
-            songs.push(new Song(result.key, result.title, result.success === true, result.duration));
+            const song = new Song(result.key, result.title, result.success === true, result.duration, result.waveformGenerated);
+            songs.push(song);
             return songs;
         })
         this.emitNotice(socket, {message: 'Song has been added to the queue'});

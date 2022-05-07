@@ -54,13 +54,13 @@ export class Song {
   /** Public ID of the user who requested it */
   requestedBy?: string;
 
-  constructor(key: string, title: string, ready: boolean, durationInSeconds: number) {
+  constructor(key: string, title: string, ready: boolean, durationInSeconds: number, waveformGenerated: boolean = false) {
     this.key = key;
     this.title = title;
     this.ready = ready;
     this.durationInSeconds = durationInSeconds;
-    this.downloadProgress = 0;
-    this.waveformGenerated = false;
+    this.downloadProgress = ready ? 100 : 0;
+    this.waveformGenerated = waveformGenerated;
   }
 }
 
