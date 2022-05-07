@@ -316,7 +316,7 @@ class RoomEvents {
         clearTimeout(this.endOfSong);
         // Determine when the song ends
         const endTimestamp = currentSong.eventTimestamp + (currentSong.song.durationInSeconds * 1000) + 1000 /* Add a single second buffer */;
-        const timeout = endTimestamp - (new Date().getTime());
+        const timeout = endTimestamp - (new Date().getTime()) - (currentSong.lastCurrentSeconds * 1000) ;
         this.endOfSong = setTimeout(callback, timeout);
         console.log('Song will be ending in', Math.ceil(timeout / 1000), 'seconds');
     }
