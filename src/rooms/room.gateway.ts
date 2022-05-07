@@ -12,9 +12,10 @@ import {
 import { Socket, Server } from 'socket.io';
 import {RoomService} from "./room.service";
 import {RoomController} from "./room.controller";
-import {AddSong, Join, SkipToTimestamp} from "./room.messages";
+import {AddSong, BecomeAdmin, Join, SkipToTimestamp} from "./room.messages";
 import {RoomHandler} from "./room.flow";
 import {SongsService} from "../songs/songs.service";
+import {ConfigService} from "@nestjs/config";
 
 
 @WebSocketGateway({
@@ -32,7 +33,10 @@ export class RoomGateway implements OnGatewayDisconnect, OnGatewayInit {
     socketToRoom: { [id: string]: number };
 
 
-    constructor(private songService: SongsService) {
+    constructor(
+        private readonly songService: SongsService,
+        private readonly configService: ConfigService,
+    ) {
         this.rooms = {};
         this.socketToRoom = {};
     }
@@ -104,6 +108,14 @@ export class RoomGateway implements OnGatewayDisconnect, OnGatewayInit {
         this.withRoomFromSocket(socket, room => room.skipSongToTimestamp(socket, message));
     }
 
+    @SubscribeMessage('become-admin')
+    async onBecomeAdmin(
+        @ConnectedSocket() socket: Socket,
+        @MessageBody() message: BecomeAdmin,
+    ) {
+        this.withRoomFromSocket(socket, room => room.becomeAdmin(socket, message.password));
+    }
+
     private withRoomFromSocket(socket: Socket, handle: (room: RoomHandler) => void) {
         const room = this.socketToRoom[socket.id];
         this.withRoom(socket, room, handle);
@@ -127,6 +139,7 @@ export class RoomGateway implements OnGatewayDisconnect, OnGatewayInit {
         this.rooms = {
             1: new RoomHandler(
                 this.songService,
+                this.configService,
                 server,
                 1
             )

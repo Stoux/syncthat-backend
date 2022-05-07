@@ -7,6 +7,7 @@ import {ReactiveVar} from "../util/ReactiveVar";
 import {DownloadResult, SongsService} from "../songs/songs.service";
 import {BroadcastOperator} from "socket.io/dist/broadcast-operator";
 import {DefaultEventsMap} from "socket.io/dist/typed-events";
+import {ConfigService} from "@nestjs/config";
 
 
 const TIME_TILL_KICK = 60 * 1000; // Get kicked after a minute.
@@ -14,17 +15,19 @@ const TIME_TILL_KICK = 60 * 1000; // Get kicked after a minute.
 export class RoomHandler {
 
 
-    private server: Server;
-    private broadcastId: string;
-    public roomId: number;
+    private readonly broadcastId: string;
     private currentSong: ReactiveVar<CurrentSong | null>;
     private songsQueue: ReactiveVar<Song[]>;
     private users: ConnectedUser[];
     private events: RoomEvents;
 
-    constructor(private songService: SongsService, server: Server, roomId: number) {
+    constructor(
+        private readonly songService: SongsService,
+        private readonly configService: ConfigService,
+        private readonly server: Server,
+        public readonly roomId: number
+    ) {
         this.server = server;
-        this.roomId = roomId;
         this.broadcastId = `room-${roomId}`;
 
         this.users = [];
@@ -233,6 +236,31 @@ export class RoomHandler {
         this.currentSong.set(curSong);
     }
 
+    public becomeAdmin(socket: Socket, password: string) {
+        const user = this.users.find(u => u.socketId === socket.id);
+        if (!user) {
+            return;
+        }
+
+        if (user.admin) {
+            this.emitNotice(socket, {message: 'You\'re already an admin!'});
+        } else {
+            const configPassword = this.configService.get<string>('ADMIN_PASSWORD');
+            console.log(configPassword, password);
+            if (password === configPassword) {
+                user.admin = true;
+                this.emitUsers();
+                socket.emit('you', user.toPrivateData());
+                this.emitNotice(socket, {message: 'You an admin now!'});
+                console.log(user.name, 'is now an admin');
+            } else {
+                this.emitNotice(socket, {type: 'error', message: 'Nope.'})
+                console.log(user.name, 'failed to become an admin');
+            }
+        }
+
+    }
+
     protected possiblyPlayNextSong(): void {
         // Check if there's still a song playing
         if (this.currentSong.get() !== null) {
@@ -339,7 +367,7 @@ class ConnectedUser {
         public name: string,
     ) {
         this.socketId = socketId;
-        this.admin = true;
+        this.admin = false;
     }
 
     public isConnected(): boolean {
@@ -351,7 +379,7 @@ class ConnectedUser {
             id: this.publicId,
             name: this.name,
             connected: this.isConnected(),
-            // admin: this.admin,
+            admin: this.admin,
         }
     }
 
