@@ -285,6 +285,8 @@ export class RoomHandler {
 
         user.socketId = undefined;
         user.disconnectedSince = (new Date()).getTime();
+
+        this.emitUsers();
     }
 
     public emitNotice(socket: Socket|Server|BroadcastOperator<DefaultEventsMap, any>, notice: Notice): void {
@@ -293,7 +295,6 @@ export class RoomHandler {
 
     private emitUsers(): void {
         const users = this.users
-            .filter(u => !u.disconnectedSince)
             .map(u => u.toPublicData());
 
         this.broadcast('users', users);
