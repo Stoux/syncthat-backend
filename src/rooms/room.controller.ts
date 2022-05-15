@@ -5,7 +5,7 @@ import { Logger } from '@nestjs/common';
 import {DownloadResult, SongsService} from "../songs/songs.service";
 import {WebSocketGateway} from "@nestjs/websockets";
 
-@Controller('rooms')
+// @Controller('rooms')
 export class RoomController {
   constructor(private readonly roomService: RoomService,private readonly songsService: SongsService ) {}
 

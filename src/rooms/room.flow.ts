@@ -76,6 +76,8 @@ export class RoomHandler {
      * @param message
      */
     public join(socket: Socket, message: JoinMessage): boolean {
+        console.log('New user connecting', message);
+
         // Check if the user is reconnecting
         let foundUser = message.privateId ? this.users.find(user => user.privateId === message.privateId) : null;
         if (foundUser) {
@@ -93,7 +95,7 @@ export class RoomHandler {
                 foundUser.name = message.name;
             }
 
-            console.log('User has rejoined the room', foundUser.name, foundUser.publicId);
+            console.log('User has rejoined the room', foundUser);
         } else {
             // Create a new user
             foundUser = new ConnectedUser(
@@ -104,7 +106,7 @@ export class RoomHandler {
             )
             this.users.push(foundUser);
 
-            console.log('New user has joined the room', foundUser.name, foundUser.publicId);
+            console.log('New user has joined the room', foundUser);
         }
 
         // Let the user join the broadcast room

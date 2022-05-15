@@ -13,7 +13,7 @@ export class SongsController {
         private readonly configService: ConfigService,
     ) {}
 
-    @Post('download')
+    // @Post('download')
     downloadSong(@Body('url') url: string): any {
 
         return {
