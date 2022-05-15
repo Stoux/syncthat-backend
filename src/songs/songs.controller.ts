@@ -27,11 +27,11 @@ export class SongsController {
         return this.songsService.getSongStatus(key);
     }
 
-    private readonly AUDIO_BUFFER_IN_BYTES = 1_000_000;
+    private readonly AUDIO_BUFFER_IN_BYTES = 2_000_000;
 
     @Get('stream/:key')
     getFile(@Res({ passthrough: true }) res: Response, @Req() request: Request, @Param('key') key: string) {
-        const fileMatch = /^[\w-]+\.(mp3|json)$/.exec(key);
+        const fileMatch = /^[\w-_]+\.(mp3|json)$/i.exec(key);
         if (!fileMatch) {
             throw new HttpException('Invalid file key given', HttpStatus.BAD_REQUEST);
         }
