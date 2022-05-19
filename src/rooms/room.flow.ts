@@ -2,7 +2,15 @@ import {Server, Socket} from "socket.io";
 import {AddSong as AddSongMessage, ChatMessage, Join as JoinMessage, Notice, SkipToTimestamp} from "./room.messages";
 import {v4} from 'uuid'
 import {RoomController} from "./room.controller";
-import {CurrentSong, LogChatMessage, LogMessage, LogMessageType, Song} from "./room.models";
+import {
+    CurrentSong,
+    LogChatMessage,
+    LogMessage,
+    LogMessageType,
+    LogNotification,
+    NotificationType,
+    Song
+} from "./room.models";
 import {ReactiveVar} from "../util/ReactiveVar";
 import {DownloadResult, SongsService} from "../songs/songs.service";
 import {BroadcastOperator} from "socket.io/dist/broadcast-operator";
@@ -374,8 +382,16 @@ export class RoomHandler {
 
     }
 
-    public emitNotice(socket: Socket|Server|BroadcastOperator<DefaultEventsMap, any>, notice: LogMessage): void {
-        socket.emit('private-message', notice);
+    public emitNotice(socket: Socket|Server|BroadcastOperator<DefaultEventsMap, any>, notice: Notice): void {
+        const message: LogNotification = {
+            id: v4(),
+            type: LogMessageType.Notification,
+            notificationType: NotificationType.PRIVATE_MESSAGE,
+            message: notice.message,
+            timestamp: (new Date()).getTime(),
+            emoji: notice.type === 'error' ? '❌' : '✅',
+        }
+        socket.emit('private-message', message);
     }
 
     private emitUsers(): void {
