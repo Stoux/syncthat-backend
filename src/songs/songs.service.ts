@@ -50,6 +50,17 @@ export class SongsService {
             info.id,
             info.extractor,
             0,
+            {
+                id: info.id,
+                title: info.title,
+                uploader: info.uploader,
+                thumbnail: info.thumbnail,
+                extractor: info.extractor,
+                uploader_url: info.uploader_url,
+                webpage_url: info.webpage_url,
+                description: info.description,
+                duration_string: info.duration_string,
+            }
         );
         this.songs[key] = result
 
@@ -157,6 +168,7 @@ export class DownloadResult {
     id?: string|number
     extractor?: string
     duration?: number
+    songInfo: YoutubeDlJsonDump;
     title?: string;
     progress?: number
     key?: string;
@@ -164,11 +176,12 @@ export class DownloadResult {
     private callbacks: ((result: DownloadResult) => void)[];
 
 
-    constructor(id: string | number, extractor: string, progress?: number) {
+    constructor(id: string | number, extractor: string, progress?: number, songInfo?: YoutubeDlJsonDump) {
         this.id = id;
         this.extractor = extractor;
         this.key = id ? extractor +'-' + id : null;
         this.callbacks = [];
+        this.songInfo = songInfo;
         this.setProgress(progress);
     }
 
@@ -202,10 +215,14 @@ export class DownloadResult {
 
 }
 
-interface YoutubeDlJsonDump {
+export interface YoutubeDlJsonDump {
     id: string,
     extractor: string,
     duration_string: string,
     title: string,
     description?: string,
+    webpage_url?: string,
+    uploader?: string,
+    uploader_url?: string,
+    thumbnail?: string,
 }

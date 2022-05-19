@@ -17,6 +17,10 @@ export interface SkipToTimestamp {
     atTimestamp?: number;
 }
 
+export interface ChatMessage {
+    message: string,
+}
+
 export interface BecomeAdmin {
     password: string;
 }

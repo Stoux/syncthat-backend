@@ -1,8 +1,8 @@
 import {Server, Socket} from "socket.io";
-import {AddSong as AddSongMessage, Join as JoinMessage, Notice, SkipToTimestamp} from "./room.messages";
+import {AddSong as AddSongMessage, ChatMessage, Join as JoinMessage, Notice, SkipToTimestamp} from "./room.messages";
 import {v4} from 'uuid'
 import {RoomController} from "./room.controller";
-import {CurrentSong, Room, Song} from "./room.models";
+import {CurrentSong, LogChatMessage, LogMessage, LogMessageType, Song} from "./room.models";
 import {ReactiveVar} from "../util/ReactiveVar";
 import {DownloadResult, SongsService} from "../songs/songs.service";
 import {BroadcastOperator} from "socket.io/dist/broadcast-operator";
@@ -18,8 +18,10 @@ export class RoomHandler {
     private readonly broadcastId: string;
     private currentSong: ReactiveVar<CurrentSong | null>;
     private songsQueue: ReactiveVar<Song[]>;
+    private playedSongs: ReactiveVar<Song[]>;
     private users: ConnectedUser[];
     private events: RoomEvents;
+    private log: ReactiveVar<any[]>;
 
     constructor(
         private readonly songService: SongsService,
@@ -32,7 +34,9 @@ export class RoomHandler {
 
         this.users = [];
         this.songsQueue = new ReactiveVar<Song[]>([]);
+        this.playedSongs = new ReactiveVar<Song[]>([]);
         this.currentSong = new ReactiveVar<CurrentSong | null>(null);
+        this.log = new ReactiveVar<LogMessage[]>([]);
 
         this.events = this.startEvents();
     }
@@ -45,14 +49,23 @@ export class RoomHandler {
                 console.log('Now playing', song.song.title, '@', song.lastCurrentSeconds, 'seconds');
                 this.events.setTimeoutForEndOfSong(song, () => {
                     console.log('Song has ended.');
-                    this.currentSong.set(null);
-                    this.possiblyPlayNextSong();
+                    this.onCurrentSongEnd();
                 });
             }
         });
         this.songsQueue.subscribe(songs => {
             this.broadcast('queue', songs);
         })
+        this.playedSongs.subscribe(songs => {
+            this.broadcast('played-songs', songs);
+        });
+        this.log.subscribe(messages => {
+            if (messages.length > 100) {
+                this.log.set(messages.slice(0, 100));
+            } else {
+                this.broadcast('log', messages);
+            }
+        });
 
         // Register event loop
         const events: RoomEvents = new RoomEvents();
@@ -64,6 +77,23 @@ export class RoomHandler {
         }), 15 * 1000);
 
         return events;
+    }
+
+    private onCurrentSongEnd() {
+        const song = this.currentSong.get().song;
+        song.stoppedAt = (new Date()).getTime();
+
+        // Add the song to the list of played songs
+        let playedSongs = this.playedSongs.get();
+        playedSongs.unshift(song);
+        if (playedSongs.length > 20) {
+            playedSongs = playedSongs.slice(0, 20);
+        }
+        this.playedSongs.set(playedSongs);
+
+        // Song has ended; set it to null & possibly play the next track.
+        this.currentSong.set(null);
+        this.possiblyPlayNextSong();
     }
 
     private broadcast(event: string, message: any) {
@@ -184,7 +214,8 @@ export class RoomHandler {
 
         // Add the song to the end of the queue
         this.songsQueue.modify(songs => {
-            const song = new Song(result.key, result.title, result.success === true, result.duration, result.waveformGenerated);
+            const addedBy = this.users.find(u => u.socketId === socket.id)
+            const song = new Song(result.key, result.title, result.success === true, result.duration, result.waveformGenerated, result.songInfo, addedBy?.publicId );
             songs.push(song);
             return songs;
         })
@@ -201,8 +232,7 @@ export class RoomHandler {
         // TODO: Show message in chat about event
 
         console.log('Song has been skipped');
-        this.currentSong.set(null);
-        this.possiblyPlayNextSong();
+        this.onCurrentSongEnd();
     }
 
     public skipSongToTimestamp(socket: Socket, message: SkipToTimestamp) {
@@ -285,6 +315,7 @@ export class RoomHandler {
         // The song can be played. Pop it from the queue & start playing it
         queue.shift();
         this.songsQueue.set(queue);
+        song.playedAt = (new Date()).getTime();
         this.currentSong.set(new CurrentSong(song));
     }
 
@@ -319,8 +350,32 @@ export class RoomHandler {
         this.emitUsers();
     }
 
-    public emitNotice(socket: Socket|Server|BroadcastOperator<DefaultEventsMap, any>, notice: Notice): void {
-        socket.emit('notice', notice);
+    public onChatMessage(socket: Socket, chatMessage: ChatMessage): void {
+        const user = this.users.find(u => u.socketId === socket.id);
+        if (!user) {
+            // TOODO: Notice
+            return;
+        }
+
+        this.log.modify(messages => {
+            const logItem: LogChatMessage = {
+                id: v4(),
+                message: chatMessage.message,
+                timestamp: (new Date()).getTime(),
+                byId: user.publicId,
+                name: user.name,
+                type: LogMessageType.ChatMessage,
+            };
+
+            messages.push(logItem);
+
+            return messages;
+        })
+
+    }
+
+    public emitNotice(socket: Socket|Server|BroadcastOperator<DefaultEventsMap, any>, notice: LogMessage): void {
+        socket.emit('private-message', notice);
     }
 
     private emitUsers(): void {
@@ -367,6 +422,7 @@ class ConnectedUser {
         public privateId: string,
         public publicId: string,
         public name: string,
+        public emoji?: string,
     ) {
         this.socketId = socketId;
         this.admin = false;
@@ -380,6 +436,7 @@ class ConnectedUser {
         return {
             id: this.publicId,
             name: this.name,
+            emoji: this.emoji,
             connected: this.isConnected(),
             admin: this.admin,
         }
@@ -390,6 +447,7 @@ class ConnectedUser {
             privateId: this.privateId,
             publicId: this.publicId,
             name: this.name,
+            emoji: this.emoji,
             admin: this.admin,
         }
     }

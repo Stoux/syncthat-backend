@@ -12,7 +12,7 @@ import {
 import { Socket, Server } from 'socket.io';
 import {RoomService} from "./room.service";
 import {RoomController} from "./room.controller";
-import {AddSong, BecomeAdmin, Join, SkipToTimestamp} from "./room.messages";
+import {AddSong, BecomeAdmin, ChatMessage, Join, SkipToTimestamp} from "./room.messages";
 import {RoomHandler} from "./room.flow";
 import {SongsService} from "../songs/songs.service";
 import {ConfigService} from "@nestjs/config";
@@ -114,6 +114,14 @@ export class RoomGateway implements OnGatewayDisconnect, OnGatewayInit {
         @MessageBody() message: BecomeAdmin,
     ) {
         this.withRoomFromSocket(socket, room => room.becomeAdmin(socket, message.password));
+    }
+
+    @SubscribeMessage('send-chat-message')
+    async onChatMessage(
+        @ConnectedSocket() socket: Socket,
+        @MessageBody() message: ChatMessage,
+    ) {
+        this.withRoomFromSocket(socket, room => room.onChatMessage( socket, message ));
     }
 
     private withRoomFromSocket(socket: Socket, handle: (room: RoomHandler) => void) {
