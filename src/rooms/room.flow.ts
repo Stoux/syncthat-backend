@@ -417,6 +417,7 @@ export class RoomHandler {
         // Modify the vote & update the current song
         currentSong.song.likedDisliked[user.publicId] = vote.vote;
         this.currentSong.set(currentSong);
+        this.emitNotice(socket, { message: 'You voted "' + (vote.vote === undefined ? 'nothing' : (vote.vote === true ? 'Yay' : 'Nay' )) + '"' })
     }
 
     public emitNotice(socket: Socket|Server|BroadcastOperator<DefaultEventsMap, any>, notice: Notice): void {

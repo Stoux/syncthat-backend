@@ -124,7 +124,7 @@ export class RoomGateway implements OnGatewayDisconnect, OnGatewayInit {
         this.withRoomFromSocket(socket, room => room.onChatMessage( socket, message ));
     }
 
-    @SubscribeMessage('vote-no-current-song')
+    @SubscribeMessage('vote-on-current-song')
     async onVote(
         @ConnectedSocket() socket: Socket,
         @MessageBody() message: VoteOnCurrentSong,
