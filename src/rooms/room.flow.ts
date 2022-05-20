@@ -160,6 +160,7 @@ export class RoomHandler {
         this.emitUsers();
         socket.emit('current-song', this.currentSong.get());
         socket.emit('queue', this.songsQueue.get());
+        socket.emit('log', this.log.get());
 
         return true;
     }
