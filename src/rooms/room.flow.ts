@@ -1,5 +1,12 @@
 import {Server, Socket} from "socket.io";
-import {AddSong as AddSongMessage, ChatMessage, Join as JoinMessage, Notice, SkipToTimestamp} from "./room.messages";
+import {
+    AddSong as AddSongMessage,
+    ChatMessage,
+    Join as JoinMessage,
+    Notice,
+    SkipToTimestamp,
+    VoteOnCurrentSong
+} from "./room.messages";
 import {v4} from 'uuid'
 import {RoomController} from "./room.controller";
 import {
@@ -361,7 +368,12 @@ export class RoomHandler {
     public onChatMessage(socket: Socket, chatMessage: ChatMessage): void {
         const user = this.users.find(u => u.socketId === socket.id);
         if (!user) {
-            // TOODO: Notice
+            // TODO: Notice
+            return;
+        }
+
+        if (chatMessage.message.length > 1000) {
+            this.emitNotice(socket, { message: 'Hou die verhalen lekker voor je maat', type: 'error'});
             return;
         }
 
@@ -379,7 +391,31 @@ export class RoomHandler {
 
             return messages;
         })
+    }
 
+    public onVote(socket: Socket, vote: VoteOnCurrentSong) {
+        const user = this.users.find(u => u.socketId === socket.id);
+        if (!user) {
+            // TODO: Notice
+            return;
+        }
+
+        // Check if a song is currently playing
+        const currentSong = this.currentSong.get();
+        if (!currentSong) {
+            this.emitNotice(socket, { message: 'Nothing is playing right now. You can\'t vote on nothing.', type: 'error' })
+            return;
+        }
+
+        // Check if the vote changed
+        if (currentSong.song.likedDisliked[user.publicId] === vote.vote) {
+            this.emitNotice(socket, { message: 'That is already your current vote.', type: 'error' })
+            return;
+        }
+
+        // Modify the vote & update the current song
+        currentSong.song.likedDisliked[user.publicId] = vote.vote;
+        this.currentSong.set(currentSong);
     }
 
     public emitNotice(socket: Socket|Server|BroadcastOperator<DefaultEventsMap, any>, notice: Notice): void {

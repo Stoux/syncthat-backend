@@ -21,6 +21,10 @@ export interface ChatMessage {
     message: string,
 }
 
+export interface VoteOnCurrentSong {
+    vote: boolean|undefined,
+}
+
 export interface BecomeAdmin {
     password: string;
 }
