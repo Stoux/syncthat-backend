@@ -25,6 +25,10 @@ export interface VoteOnCurrentSong {
     vote: boolean|undefined,
 }
 
+export interface ChangeName {
+    name: string,
+}
+
 export interface BecomeAdmin {
     password: string;
 }

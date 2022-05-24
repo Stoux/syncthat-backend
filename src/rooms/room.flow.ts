@@ -342,7 +342,42 @@ export class RoomHandler {
                 console.log(user.name, 'failed to become an admin');
             }
         }
+    }
 
+    public changeName(socket: Socket, name: string) {
+        const user = this.findUser(socket);
+        if (!user) return;
+
+        const oldName = user.name;
+        const newName = name.trim();
+
+        // Check if changed & available
+        if (newName.length > 40 || newName.length === 0) {
+            this.emitNotice(socket, { type: 'error', message: 'How about a normal name?'})
+            return;
+        }
+        if (oldName === newName) {
+            this.emitNotice(socket, { type: 'error', message: 'This name is already taken. By you, you idiot.'})
+            return;
+        }
+        if (!this.isNameAvailable(newName, user.publicId)) {
+            this.emitNotice(socket, { type: 'error', message: 'This name is already taken?'})
+            return;
+        }
+
+        // Modify the name
+        user.name = newName;
+        socket.emit('you', user.toPrivateData());
+        this.emitUsers();
+
+        // Notify
+        this.addNotificationToLog(`RIP in pieces [${oldName}]. Welcome [${newName}].`, NotificationType.USER_CHANGED_NAME, '🐒');
+    }
+
+    protected isNameAvailable(name: string, excludePublicUserId?: string): boolean {
+        return !this.users.find(
+            user => user.name.toLowerCase() === name.toLowerCase() && user.publicId !== excludePublicUserId
+        );
     }
 
     protected possiblyPlayNextSong(): void {
