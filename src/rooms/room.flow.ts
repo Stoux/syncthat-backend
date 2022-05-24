@@ -26,6 +26,8 @@ import {ConfigService} from "@nestjs/config";
 
 
 const TIME_TILL_KICK = 60 * 1000; // Get kicked after a minute.
+const MAX_LOG_LENGTH = 1000; // Number of messages in the log to keep track of
+const LOG_WIPE_AFTER_MILLISECONDS = 12 * 60 * 60 * 1000; // Number of MS before messages should be wiped from the history.
 
 export class RoomHandler {
 
@@ -36,7 +38,7 @@ export class RoomHandler {
     private playedSongs: ReactiveVar<Song[]>;
     private users: ConnectedUser[];
     private events: RoomEvents;
-    private log: ReactiveVar<any[]>;
+    private log: ReactiveVar<LogMessage[]>;
 
     constructor(
         private readonly songService: SongsService,
@@ -75,8 +77,8 @@ export class RoomHandler {
             this.broadcast('played-songs', songs);
         });
         this.log.subscribe(messages => {
-            if (messages.length > 100) {
-                this.log.set(messages.slice(0, 100));
+            if (messages.length > MAX_LOG_LENGTH) {
+                this.log.set(messages.slice(0, MAX_LOG_LENGTH));
             } else {
                 this.broadcast('log', messages);
             }
@@ -90,6 +92,20 @@ export class RoomHandler {
             this.users = users;
             this.emitUsers();
         }), 15 * 1000);
+
+        // Interval that wipes old messages
+        setInterval(() => {
+            const log = this.log.get();
+            if (log.length) {
+                return;
+            }
+
+            const now = (new Date()).getTime();
+            const newLog = log.filter(item => item.timestamp < now - LOG_WIPE_AFTER_MILLISECONDS);
+            if (newLog.length !== log.length) {
+                this.log.set(newLog);
+            }
+        }, 1000 * 60 * 1000)
 
         return events;
     }
