@@ -89,6 +89,12 @@ export class RoomHandler {
 
         // Interval that kicks disconnected users.
         events.userCheck = setInterval(() => RoomEvents.doUserCheck(this.users, users => {
+            this.users.filter(element => !users.includes(element)).forEach(deletedUser => this.addNotificationToLog(
+                `[${deletedUser.name}] is no longer a cool kid. Bye!`,
+                NotificationType.USER_LEAVE,
+                '🤏'
+            ));
+
             this.users = users;
             this.emitUsers();
         }), 15 * 1000);
@@ -167,6 +173,7 @@ export class RoomHandler {
             )
             this.users.push(foundUser);
 
+            this.addNotificationToLog(`[${foundUser.name}] is now in sync.`, NotificationType.USER_JOIN, '🙌');
             console.log('New user has joined the room', foundUser);
         }
 
@@ -182,7 +189,8 @@ export class RoomHandler {
     }
 
     public queueSong(socket: Socket, message: AddSongMessage) {
-        if (!this.isAdmin(socket)) return;
+        const user = this.getAdmin(socket);
+        if (!user) return;
 
         this.emitNotice(socket, { message: 'Fetching metadata for URL'});
 
@@ -255,20 +263,32 @@ export class RoomHandler {
         console.log('Added song to queue', result.title);
         this.possiblyPlayNextSong();
 
+        this.addNotificationToLog(`[${user.name}] has queued [${result.title}]!`, NotificationType.SONG_ADDED_TO_QUEUE, '🕺');
+
         // TODO: Broadcast notice?
     }
 
     public skipSong(socket: Socket) {
-        if (!this.isAdmin(socket)) return;
+        const user = this.getAdmin(socket);
+        if (!user) return;
 
-        // TODO: Show message in chat about event
+        const song = this.currentSong.get();
+        if (!song) {
+            this.emitNotice(socket, { message: 'Nothing is playing right now.', type: 'error'});
+            return;
+        }
+
+        // TODO: Check if there are upvotes -> Change message
+        // TODO: Check if the song was queued by the current user
+
+        this.addNotificationToLog(`Classic. [${user.name}] has skipped the current track!`, NotificationType.SONG_FORCE_SKIPPED, '🕺');
 
         console.log('Song has been skipped');
         this.onCurrentSongEnd();
     }
 
     public skipSongToTimestamp(socket: Socket, message: SkipToTimestamp) {
-        if (!this.isAdmin(socket)) return;
+        if (!this.getAdmin(socket)) return;
 
         // Check if there's a song playing
         const curSong = this.currentSong.get();
@@ -301,7 +321,7 @@ export class RoomHandler {
     }
 
     public becomeAdmin(socket: Socket, password: string) {
-        const user = this.users.find(u => u.socketId === socket.id);
+        const user = this.findUser(socket);
         if (!user) {
             return;
         }
@@ -351,19 +371,23 @@ export class RoomHandler {
         this.currentSong.set(new CurrentSong(song));
     }
 
-    protected isAdmin(socket: Socket, emitNotice: boolean = true): boolean {
-        const user = this.users.find(u => u.socketId === socket.id);
+    protected getAdmin(socket: Socket, emitNotice: boolean = true): ConnectedUser|null {
+        const user = this.findUser(socket);
         if (user && user.admin) {
-            return true;
+            return user;
         }
 
         if (emitNotice) {
             this.emitNotice(socket, {type: 'error', message: 'Only admins can do that action.'})
         }
 
-        return false;
+        return null;
     }
 
+
+    private findUser(socket: Socket): ConnectedUser|null {
+        return this.users.find(u => u.socketId === socket.id);
+    }
 
     /**
      * A user has disconnected from the socket.
@@ -394,19 +418,13 @@ export class RoomHandler {
             return;
         }
 
-        this.log.modify(messages => {
-            const logItem: LogChatMessage = {
-                id: v4(),
-                message: chatMessage.message,
-                timestamp: (new Date()).getTime(),
-                byId: user.publicId,
-                name: user.name,
-                type: LogMessageType.ChatMessage,
-            };
-
-            messages.push(logItem);
-
-            return messages;
+        this.addToLog(<LogChatMessage>{
+            id: v4(),
+            message: chatMessage.message,
+            timestamp: (new Date()).getTime(),
+            byId: user.publicId,
+            name: user.name,
+            type: LogMessageType.ChatMessage,
         })
     }
 
@@ -454,6 +472,25 @@ export class RoomHandler {
 
         this.broadcast('users', users);
     }
+
+    private addNotificationToLog(message: string, type: NotificationType, emoji?: string): void {
+        this.addToLog(<LogNotification>{
+            id: v4(),
+            timestamp: (new Date()).getTime(),
+            message,
+            type: LogMessageType.Notification,
+            notificationType: type,
+            emoji,
+        })
+    }
+
+    private addToLog(logItem: LogMessage): void {
+        this.log.modify(messages => {
+            messages.push(logItem);
+            return messages;
+        })
+    }
+
 }
 
 class RoomEvents {
