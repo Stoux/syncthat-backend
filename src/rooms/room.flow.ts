@@ -1,6 +1,7 @@
 import {Server, Socket} from "socket.io";
 import {
     AddSong as AddSongMessage,
+    ChangeUser as ChangeUserMessage,
     ChatMessage,
     Join as JoinMessage,
     Notice,
@@ -423,34 +424,65 @@ export class RoomHandler {
         }
     }
 
-    public changeName(socket: Socket, name: string) {
+    public changeCurrentUser(socket: Socket, message: ChangeUserMessage) {
         const user = this.findUser(socket);
         if (!user) return;
 
-        const oldName = user.name;
-        const newName = name.trim();
+        let changed = false;
 
-        // Check if changed & available
-        if (newName.length > 40 || newName.length === 0) {
-            this.emitNotice(socket, { type: 'error', message: 'How about a normal name?'})
-            return;
-        }
-        if (oldName === newName) {
-            this.emitNotice(socket, { type: 'error', message: 'This name is already taken. By you, you idiot.'})
-            return;
-        }
-        if (!this.isNameAvailable(newName, user.publicId)) {
-            this.emitNotice(socket, { type: 'error', message: 'This name is already taken?'})
-            return;
+        if (message.name) {
+            const name = message.name;
+
+            const oldName = user.name;
+            const newName = name.trim();
+
+            // Check if changed & available
+            if (newName.length > 40 || newName.length === 0) {
+                this.emitNotice(socket, { type: 'error', message: 'How about a normal name?'})
+                return;
+            }
+            if (oldName === newName) {
+                this.emitNotice(socket, { type: 'error', message: 'This name is already taken. By you, you idiot.'})
+                return;
+            }
+            if (!this.isNameAvailable(newName, user.publicId)) {
+                this.emitNotice(socket, { type: 'error', message: 'This name is already taken?'})
+                return;
+            }
+
+            // Modify the name
+            user.name = newName;
+            changed = true;
+
+            // Notify
+            this.addNotificationToLog(`RIP in pieces [${oldName}]. Welcome [${newName}].`, NotificationType.USER_CHANGED_NAME, '🐒');
         }
 
-        // Modify the name
-        user.name = newName;
-        socket.emit('you', user.toPrivateData());
-        this.emitUsers();
+        if (message.emoji || message.randomEmoji) {
+            if (message.randomEmoji) {
+                user.emoji = randomEmoji().emoji;
+            } else {
+                if (!hasEmoji(user.emoji)) {
+                    this.emitNotice(socket, { type: 'error', message: 'Don\'t know nothing bout that "emoji".'})
+                    return;
+                }
 
-        // Notify
-        this.addNotificationToLog(`RIP in pieces [${oldName}]. Welcome [${newName}].`, NotificationType.USER_CHANGED_NAME, '🐒');
+                const foundEmoji = findEmoji(user.emoji).emoji;
+                if (user.emoji === foundEmoji) {
+                    this.emitNotice(socket, { type: 'error', message: `${user.emoji} is already taken. By you, you idiot.`})
+                    return;
+                }
+
+                user.emoji = foundEmoji;
+            }
+
+            changed = true;
+        }
+
+        if (changed) {
+            socket.emit('you', user.toPrivateData());
+            this.emitUsers();
+        }
     }
 
     protected isNameAvailable(name: string, excludePublicUserId?: string): boolean {

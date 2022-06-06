@@ -15,7 +15,7 @@ import {RoomController} from "./room.controller";
 import {
     AddSong,
     BecomeAdmin,
-    ChangeName,
+    ChangeUser,
     ChangeSongQueuePosition,
     ChatMessage,
     Join,
@@ -156,12 +156,19 @@ export class RoomGateway implements OnGatewayDisconnect, OnGatewayInit {
         this.withRoomFromSocket(socket, room => room.onVote( socket, message ));
     }
 
-    @SubscribeMessage('change-name')
-    async onChangeName(
+    @SubscribeMessage('vote-skip-current-song')
+    async onVoteSkip(
         @ConnectedSocket() socket: Socket,
-        @MessageBody() message: ChangeName,
     ) {
-        this.withRoomFromSocket(socket, room => room.changeName( socket, message.name ));
+        this.withRoomFromSocket(socket, room => { /* TODO */ });
+    }
+
+    @SubscribeMessage('change-user')
+    async onChangeUser(
+        @ConnectedSocket() socket: Socket,
+        @MessageBody() message: ChangeUser,
+    ) {
+        this.withRoomFromSocket(socket, room => room.changeCurrentUser( socket, message ));
     }
 
     private withRoomFromSocket(socket: Socket, handle: (room: RoomHandler) => void) {

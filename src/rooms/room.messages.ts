@@ -31,8 +31,10 @@ export interface VoteOnCurrentSong {
     vote: boolean|undefined,
 }
 
-export interface ChangeName {
-    name: string,
+export interface ChangeUser {
+    name?: string,
+    emoji?: string,
+    randomEmoji?: boolean,
 }
 
 export interface BecomeAdmin {
