@@ -277,7 +277,7 @@ export class RoomHandler {
             songs.push(song);
             return songs;
         })
-        this.emitNotice(socket, {message: 'Song has been added to the queue'});
+        
         console.log('Added song to queue', result.title);
         this.possiblyPlayNextSong();
 
