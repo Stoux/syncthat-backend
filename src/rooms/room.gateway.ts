@@ -12,7 +12,16 @@ import {
 import { Socket, Server } from 'socket.io';
 import {RoomService} from "./room.service";
 import {RoomController} from "./room.controller";
-import {AddSong, BecomeAdmin, ChangeName, ChatMessage, Join, SkipToTimestamp, VoteOnCurrentSong} from "./room.messages";
+import {
+    AddSong,
+    BecomeAdmin,
+    ChangeName,
+    ChangeSongQueuePosition,
+    ChatMessage,
+    Join,
+    SkipToTimestamp,
+    VoteOnCurrentSong
+} from "./room.messages";
 import {RoomHandler} from "./room.flow";
 import {SongsService} from "../songs/songs.service";
 import {ConfigService} from "@nestjs/config";
@@ -84,21 +93,36 @@ export class RoomGateway implements OnGatewayDisconnect, OnGatewayInit {
         this.withRoomFromSocket(socket, room => room.queueSong(socket, request));
     }
 
-    @SubscribeMessage('remove-queue-song')
+    @SubscribeMessage('remove-song-from-queue')
     async onRemoveQueueSong(
         @ConnectedSocket() socket: Socket,
         @MessageBody('key') key: string,
     ) {
-        // TODO
+        this.withRoomFromSocket(socket, room => room.removeSongFromQueue(socket, key));
+    }
+
+    @SubscribeMessage('force-play-from-queue')
+    async onForcePlayFromQueue(
+        @ConnectedSocket() socket: Socket,
+        @MessageBody('key') key: string,
+    ) {
+        this.withRoomFromSocket(socket, room => room.forcePlaySongFromQueue(socket, key));
+    }
+
+    @SubscribeMessage('move-song-in-queue')
+    async onMoveSongInQueue(
+        @ConnectedSocket() socket: Socket,
+        @MessageBody() message: ChangeSongQueuePosition,
+    ) {
+        this.withRoomFromSocket(socket, room => room.moveSongInQueue(socket, message.key, message.position));
     }
 
     @SubscribeMessage('skip-song')
-    async onSkipCurrentSong(
+    async onSkip(
         @ConnectedSocket() socket: Socket,
     ) {
         this.withRoomFromSocket(socket, room => room.skipSong(socket));
     }
-
 
     @SubscribeMessage('skip-to-timestamp')
     async onSkipToTimestamp(

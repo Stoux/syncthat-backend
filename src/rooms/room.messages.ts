@@ -17,6 +17,11 @@ export interface SkipToTimestamp {
     atTimestamp?: number;
 }
 
+export interface ChangeSongQueuePosition {
+    key: string,
+    position: number,
+}
+
 export interface ChatMessage {
     message: string,
 }

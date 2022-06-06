@@ -130,6 +130,7 @@ export class RoomHandler {
 
         // Song has ended; set it to null & possibly play the next track.
         this.currentSong.set(null);
+        clearTimeout(this.events.endOfSong);
         this.possiblyPlayNextSong();
     }
 
@@ -270,17 +271,24 @@ export class RoomHandler {
     }
 
     public skipSong(socket: Socket) {
-        const user = this.getAdmin(socket);
+        const user = this.findUser(socket);
         if (!user) return;
 
         const song = this.currentSong.get();
-        if (!song) {
-            this.emitNotice(socket, { message: 'Nothing is playing right now.', type: 'error'});
-            return;
+        if (user.admin) {
+            if (!song) {
+                this.emitNotice(socket, { message: 'Nothing is playing right now.', type: 'error'});
+                return;
+            }
+        } else {
+            if (song.song.requestedBy !== user.publicId) {
+                this.emitNotice(socket, { message: 'You can only skip your own tracks..', type: 'error'});
+                return;
+            }
         }
 
         // TODO: Check if there are upvotes -> Change message
-        // TODO: Check if the song was queued by the current user
+        // TODO: Check how much time was left
 
         this.addNotificationToLog(`Classic. [${user.name}] has skipped the current track!`, NotificationType.SONG_FORCE_SKIPPED, '🕺');
 
@@ -320,6 +328,70 @@ export class RoomHandler {
         // TODO: We shouldn't update the caller..
         this.currentSong.set(curSong);
     }
+
+    public removeSongFromQueue(socket: Socket, songKey: string) {
+        const user = this.getAdmin(socket);
+        if (!user) return;
+
+        const song = this.findSong(socket, songKey);
+        if (!song) return;
+
+        this.songsQueue.modify(songs => songs.filter(s => s.key !== songKey));
+        this.addNotificationToLog(`[${user.name}] is literally wasting my bandwidth! [${song.songInfo.title}] has been removed from the queue.`, NotificationType.SONG_FORCE_SKIPPED, '🕺');
+    }
+
+    public forcePlaySongFromQueue(socket: Socket, songKey: string) {
+        const user = this.getAdmin(socket);
+        if (!user) return;
+
+        const song = this.findSong(socket, songKey);
+        if (!song) return;
+
+        // Make sure the song can be forced to play
+        if (!song.ready) {
+            this.emitNotice(socket, { type: 'error', message: `This song isn't ready to be played yet. Wait for the download to finish!` });
+            return;
+        }
+
+        // Check if the song is already at the top of the queue
+        const queue = this.songsQueue.get();
+        if (queue[0] !== song) {
+            // Move the song up the queue
+            const songIndex = queue.indexOf(song);
+            queue.splice(songIndex, 1);
+            queue.unshift(song);
+            this.songsQueue.silentSet(queue);
+        }
+
+        // Force play the next song (which is now our song)
+        this.onCurrentSongEnd();
+        this.addNotificationToLog(`Hi, my name is [${user.name}]. I have no respect for the queue so I'm now playing [${song.songInfo.title}].`, NotificationType.SONG_FORCE_PLAYED, '🖕');
+    }
+
+    /**
+     * @param socket
+     * @param songKey
+     * @param position zero-based position in the queue
+     */
+    public moveSongInQueue(socket: Socket, songKey: string, position: number) {
+        const user = this.getAdmin(socket);
+        if (!user) return;
+
+        const song = this.findSong(socket, songKey);
+        if (!song) return;
+
+        const queue = this.songsQueue.get();
+        const songIndex = queue.indexOf(song);
+        if (songIndex === position) {
+            this.emitNotice(socket, { type: 'error', message: `Song is already at that position.` });
+            return;
+        }
+
+        queue.splice(songIndex, 1);
+        queue.splice(position, 0, song )
+        this.songsQueue.set(queue);
+    }
+
 
     public becomeAdmin(socket: Socket, password: string) {
         const user = this.findUser(socket);
@@ -425,6 +497,14 @@ export class RoomHandler {
         return this.users.find(u => u.socketId === socket.id);
     }
 
+    private findSong(socket: Socket, key: string, emitNotice: boolean = true): Song|null {
+        const song = this.songsQueue.get().find(s => s.key === key);
+        if (!song && emitNotice) {
+            this.emitNotice(socket, { type: 'error', message: `That song ain't in the queue.` });
+        }
+        return song;
+    }
+
     /**
      * A user has disconnected from the socket.
      * @param socket
@@ -510,6 +590,7 @@ export class RoomHandler {
     }
 
     private addNotificationToLog(message: string, type: NotificationType, emoji?: string): void {
+        console.log(message);
         this.addToLog(<LogNotification>{
             id: v4(),
             timestamp: (new Date()).getTime(),
@@ -568,7 +649,7 @@ class ConnectedUser {
         public emoji?: string,
     ) {
         this.socketId = socketId;
-        this.admin = false;
+        this.admin = true;
     }
 
     public isConnected(): boolean {

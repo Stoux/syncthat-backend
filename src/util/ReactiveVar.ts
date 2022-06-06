@@ -17,9 +17,13 @@ export class ReactiveVar<T> {
         this.callbacks = this.callbacks.filter(c => c !== callback);
     }
 
-    public set(val: T = undefined): void {
+    public set(val: T): void {
         this.val = val;
         this.trigger();
+    }
+
+    public silentSet(val: T): void {
+        this.val = val;
     }
 
     public trigger(): void {
