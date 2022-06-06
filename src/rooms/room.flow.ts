@@ -248,8 +248,17 @@ export class RoomHandler {
             }
         };
 
-        const result = this.songService.downloadSong(message.url, downloadCallback);
-        if (result.success === false) {
+
+
+        const result = (() => {
+            try {
+                return this.songService.downloadSong(message.url, downloadCallback);
+            } catch (e: any) {
+                console.error(e);
+                return null;
+            }
+        })();
+        if (!result || result.success === false) {
             // Failed to download
             this.emitNotice(socket, {type: 'error', message: `Unable to download the URL ${message.url}`})
             return;
