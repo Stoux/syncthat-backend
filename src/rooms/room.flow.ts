@@ -89,7 +89,7 @@ export class RoomHandler {
         const events: RoomEvents = new RoomEvents();
 
         // Interval that kicks disconnected users.
-        events.userCheck = setInterval(() => RoomEvents.doUserCheck(this.users, users => {
+        events.userCheck = setInterval(() => RoomEvents.doUserCheck(this.users, this.songsQueue, this.currentSong, users => {
             this.users.filter(element => !users.includes(element)).forEach(deletedUser => this.addNotificationToLog(
                 `[${deletedUser.name}] is no longer a cool kid. Bye!`,
                 NotificationType.USER_LEAVE,
@@ -620,9 +620,17 @@ class RoomEvents {
     endOfSong?: NodeJS.Timeout;
     userCheck?: NodeJS.Timeout;
 
-    static doUserCheck(users: ConnectedUser[], updateUsers: (users: ConnectedUser[]) => void) {
+    static doUserCheck(users: ConnectedUser[], queue: ReactiveVar<Song[]>, currentSong: ReactiveVar<CurrentSong | null>, updateUsers: (users: ConnectedUser[]) => void) {
         const kickBefore = (new Date()).getTime() - TIME_TILL_KICK;
-        const keepUsers = users.filter(user => !user.disconnectedSince || user.disconnectedSince > kickBefore);
+
+        // Don't kick any users that are (currently) DJing
+        const djUserIds = queue.get().map(s => s.requestedBy);
+        if (currentSong.get()?.song) {
+            djUserIds.push(currentSong.get().song.requestedBy);
+        }
+
+        // Check if the list of filtered users is shorter
+        const keepUsers = users.filter(user => !user.disconnectedSince || user.disconnectedSince > kickBefore || djUserIds.includes(user.publicId));
         if (keepUsers.length !== users.length) {
             updateUsers(keepUsers);
         }
