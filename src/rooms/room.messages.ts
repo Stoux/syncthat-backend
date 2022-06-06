@@ -5,6 +5,7 @@
 export interface Join {
     room: number;
     name?: string;
+    emoji?: string;
     privateId?: string;
 }
 

@@ -23,6 +23,7 @@ import {DownloadResult, SongsService} from "../songs/songs.service";
 import {BroadcastOperator} from "socket.io/dist/broadcast-operator";
 import {DefaultEventsMap} from "socket.io/dist/typed-events";
 import {ConfigService} from "@nestjs/config";
+import {hasEmoji, find as findEmoji, random as randomEmoji} from "node-emoji";
 
 
 const TIME_TILL_KICK = 60 * 1000; // Get kicked after a minute.
@@ -162,6 +163,9 @@ export class RoomHandler {
             if (message.name) {
                 foundUser.name = message.name;
             }
+            if (message.emoji && hasEmoji(message.emoji)) {
+                foundUser.emoji = findEmoji(message.emoji).emoji;
+            }
 
             console.log('User has rejoined the room', foundUser);
         } else {
@@ -171,7 +175,9 @@ export class RoomHandler {
                 v4(),
                 v4(),
                 message.name ? message.name : RoomController.generateDutchName(),
+                randomEmoji().emoji,
             )
+
             this.users.push(foundUser);
 
             this.addNotificationToLog(`[${foundUser.name}] is now in sync.`, NotificationType.USER_JOIN, '🙌');
@@ -649,7 +655,7 @@ class ConnectedUser {
         public emoji?: string,
     ) {
         this.socketId = socketId;
-        this.admin = true;
+        this.admin = false;
     }
 
     public isConnected(): boolean {
