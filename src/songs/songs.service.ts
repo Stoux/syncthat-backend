@@ -103,6 +103,10 @@ export class SongsService {
             }
         });
 
+        download.stderr.on('data', chunk => {
+            console.log(chunk.toString());
+        });
+
         download.on('exit', (code, signal) => {
             console.log('Finished download', code, signal);
             result.setProgress(code === 0 ? DownloadResult.PROGRESS_SUCCESS : DownloadResult.PROGRESS_FAILED);
