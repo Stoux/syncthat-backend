@@ -175,6 +175,14 @@ export class RoomGateway implements OnGatewayDisconnect, OnGatewayInit {
         this.withRoomFromSocket(socket, room => room.changeUserState( socket, { listening: isPlaying } ));
     }
 
+    @SubscribeMessage('change-user-is-typing')
+    async onChangeUserIsTyping(
+        @ConnectedSocket() socket: Socket,
+        @MessageBody('isTyping') isTyping: boolean,
+    ) {
+        this.withRoomFromSocket(socket, room => room.changeUserState( socket, { typing: isTyping } ));
+    }
+
     @SubscribeMessage('user-sign-of-life')
     async onUserSignOfLife(
         @ConnectedSocket() socket: Socket

@@ -634,8 +634,10 @@ export class RoomHandler {
             type: LogMessageType.ChatMessage,
         })
 
-        user.state.typing = false;
-        this.emitUsers();
+        if (user.state.typing) {
+            user.state.typing = false;
+            this.emitUsers();
+        }
     }
 
     public onVote(socket: Socket, vote: VoteOnCurrentSong) {
