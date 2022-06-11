@@ -28,8 +28,10 @@ import {ConfigService} from "../util/config.service";
 
 
 const TIME_TILL_KICK = 60 * 1000; // Get kicked after a minute.
+const TIME_TILL_INACTIVE = 30 * 1000; // Time (in ms) it takes before state is updated to 'inactive'
 const MAX_LOG_LENGTH = 1000; // Number of messages in the log to keep track of
 const LOG_WIPE_AFTER_MILLISECONDS = 12 * 60 * 60 * 1000; // Number of MS before messages should be wiped from the history.
+
 
 export class RoomHandler {
 
@@ -100,6 +102,20 @@ export class RoomHandler {
             this.users = users;
             this.emitUsers();
         }), 15 * 1000);
+
+        // Event to check if a user's active state has changed (generally from active => inactive)
+        events.activityCheck = setInterval(() => {
+            let updated = false;
+            this.users.forEach(user => {
+                if (user.updateActive()) {
+                    updated = true;
+                }
+            })
+
+            if (updated) {
+                this.emitUsers();
+            }
+        }, 1000);
 
         // Interval that wipes old messages
         setInterval(() => {
@@ -494,6 +510,34 @@ export class RoomHandler {
         }
     }
 
+    public changeUserState(socket: Socket, state: { listening?: boolean, active?: boolean, typing ?: boolean }) {
+        const user = this.findUser(socket);
+        if (!user) return;
+
+        let changed = false;
+        Object.keys(state).forEach(key => {
+            if (state[key] !== user.state[key]) {
+                user.state[key] = state[key];
+                changed = true;
+            }
+        })
+
+        if (changed) {
+            this.emitUsers();
+        }
+    }
+
+    public updateLastActivity(socket: Socket) {
+        const user = this.findUser(socket);
+        if (!user) return;
+
+        user.updateLastActivity();
+        if (user.updateActive()) {
+            this.emitUsers();
+        }
+    }
+
+
     protected isNameAvailable(name: string, excludePublicUserId?: string): boolean {
         return !this.users.find(
             user => user.name.toLowerCase() === name.toLowerCase() && user.publicId !== excludePublicUserId
@@ -570,7 +614,7 @@ export class RoomHandler {
     }
 
     public onChatMessage(socket: Socket, chatMessage: ChatMessage): void {
-        const user = this.users.find(u => u.socketId === socket.id);
+        const user = this.findUser(socket);
         if (!user) {
             // TODO: Notice
             return;
@@ -589,6 +633,9 @@ export class RoomHandler {
             name: user.name,
             type: LogMessageType.ChatMessage,
         })
+
+        user.state.typing = false;
+        this.emitUsers();
     }
 
     public onVote(socket: Socket, vote: VoteOnCurrentSong) {
@@ -660,6 +707,7 @@ export class RoomHandler {
 class RoomEvents {
     endOfSong?: NodeJS.Timeout;
     userCheck?: NodeJS.Timeout;
+    activityCheck?: NodeJS.Timeout;
 
     static doUserCheck(users: ConnectedUser[], queue: ReactiveVar<Song[]>, currentSong: ReactiveVar<CurrentSong | null>, updateUsers: (users: ConnectedUser[]) => void) {
         const kickBefore = (new Date()).getTime() - TIME_TILL_KICK;
@@ -696,6 +744,15 @@ class ConnectedUser {
     /** Timestamp since when this user was disconnected */
     disconnectedSince?: number;
 
+    /** Timestamp of last activity */
+    lastActivity: number;
+
+    state: {
+        listening: boolean,
+        typing: boolean,
+        active: boolean,
+    };
+
     constructor(
         socketId: string,
         public privateId: string,
@@ -705,10 +762,40 @@ class ConnectedUser {
     ) {
         this.socketId = socketId;
         this.admin = false;
+        this.lastActivity = new Date().getTime();
+        this.state = {
+            listening: false,
+            typing: false,
+            active: true,
+        }
     }
 
     public isConnected(): boolean {
         return !this.disconnectedSince && this.socketId !== undefined;
+    }
+
+    public updateLastActivity(time?: number) {
+        this.lastActivity = time ? time : new Date().getTime();
+    }
+
+    public determineIsActive(): boolean {
+        return this.lastActivity > (new Date().getTime() - TIME_TILL_INACTIVE);
+    }
+
+    /**
+     * Update the active state of this user
+     * @param active new active state
+     * @return whether the state changed
+     */
+    public updateActive(active?: boolean): boolean {
+        active = active === undefined ? this.determineIsActive() : active;
+
+        if (this.state.active !== active) {
+            this.state.active = active;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public toPublicData() {
@@ -716,8 +803,13 @@ class ConnectedUser {
             id: this.publicId,
             name: this.name,
             emoji: this.emoji,
-            connected: this.isConnected(),
             admin: this.admin,
+            state: {
+                connected: this.isConnected(),
+                listening: this.state.listening,
+                typing: this.state.typing,
+                active: this.state.active,
+            }
         }
     }
 
