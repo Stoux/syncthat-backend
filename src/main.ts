@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import {ConfigService} from "./util/config.service";
 
 async function bootstrap() {
   // Build the app
@@ -9,7 +10,8 @@ async function bootstrap() {
   app.enableCors({ allowedHeaders: '*', origin: '*' })
 
   // Start the app
-  await app.listen(3555, '0.0.0.0');
+  const config = app.get(ConfigService);
+  await app.listen(config.serverPort, config.serverHost);
 }
 
 bootstrap();

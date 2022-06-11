@@ -6,16 +6,21 @@ const CONFIG_DOWNLOAD_DIR = 'DOWNLOAD_DIR';
 const CONFIG_ADMIN_PASSWORD = 'ADMIN_PASSWORD';
 const CONFIG_YT_DLP_PATH = 'YT_DLP_PATH';
 const CONFIG_AUDIOWAVEFORM_PATH = 'AUDIOWAVEFORM_PATH';
+const CONFIG_SERVER_HOST = 'SERVER_HOST';
+const CONFIG_SERVER_PORT = 'SERVER_PORT';
 
 @Injectable()
 export class ConfigService {
 
-    private readonly logger;
+    private readonly logger: Logger;
 
     public readonly adminPassword: string;
     public readonly downloadDir: string;
     public readonly ytDlpPath: string;
     public readonly audiowaveformPath: string;
+
+    public readonly serverHost: string;
+    public readonly serverPort: number;
 
     constructor(private readonly configService: NestConfigService) {
         this.logger = new Logger(ConfigService.name);
@@ -27,12 +32,45 @@ export class ConfigService {
         this.audiowaveformPath = this.resolveAudiowaveformPath(errors);
         this.adminPassword = this.resolveAdminPassword(errors);
 
+        this.serverHost = this.resolveServerHost(errors);
+        this.serverPort = this.resolveServerPort(errors);
+
         // Errors should be empty.
         if (errors.length > 0) {
             this.logger.error('Invalid ENV / config:')
             errors.forEach(error => this.logger.error(`=> ${error}`));
             throw new Error('Invalid ENV / config');
         }
+    }
+
+    private resolveServerHost(errors: string[]) {
+        const host = this.configService.get<string>(CONFIG_SERVER_HOST);
+
+        if (host) {
+            this.logger.log(`Binding to host: ${host}`);
+            return host;
+        }
+
+        const defaultHost = '0.0.0.0';
+        this.logger.log(`Binding to host: ${defaultHost} (default for app)`);
+        return defaultHost;
+    }
+
+    private resolveServerPort(errors: string[]) {
+        const port = this.configService.get<number>(CONFIG_SERVER_PORT);
+        if (port) {
+            if (port >= 1 && port <= 65535) {
+                this.logger.log(`Binding to port: ${port}`)
+                return port;
+            } else {
+                errors.push(`Invalid port number: ${port}`)
+                return 0;
+            }
+        }
+
+        const defaultPort = 3555;
+        this.logger.log(`Binding to port: ${defaultPort} (default for app)`)
+        return defaultPort;
     }
 
     private resolveAdminPassword(errors: string[]) {
