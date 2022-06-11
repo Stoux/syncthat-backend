@@ -1,9 +1,9 @@
 import {Body, Controller, Get, HttpException, HttpStatus, Param, Post, Req, Res, StreamableFile} from '@nestjs/common';
 import {DownloadResult, SongsService} from "./songs.service";
-import { ConfigService } from '@nestjs/config';
 import {createReadStream, existsSync} from "fs";
 import {Request, Response} from "express";
 import * as fs from "fs";
+import {ConfigService} from "../util/config.service";
 
 @Controller('songs')
 export class SongsController {
@@ -36,7 +36,7 @@ export class SongsController {
             throw new HttpException('Invalid file key given', HttpStatus.BAD_REQUEST);
         }
 
-        const path = this.configService.get<string>('DOWNLOAD_DIR') + key;
+        const path = this.configService.downloadDir + key;
         if (!fileMatch || !existsSync(path)) {
             throw new HttpException('File doesn\'t exist', HttpStatus.BAD_REQUEST);
         }

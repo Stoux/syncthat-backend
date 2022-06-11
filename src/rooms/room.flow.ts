@@ -23,8 +23,8 @@ import {ReactiveVar} from "../util/ReactiveVar";
 import {DownloadResult, SongsService} from "../songs/songs.service";
 import {BroadcastOperator} from "socket.io/dist/broadcast-operator";
 import {DefaultEventsMap} from "socket.io/dist/typed-events";
-import {ConfigService} from "@nestjs/config";
 import {hasEmoji, find as findEmoji, random as randomEmoji} from "node-emoji";
+import {ConfigService} from "../util/config.service";
 
 
 const TIME_TILL_KICK = 60 * 1000; // Get kicked after a minute.
@@ -418,7 +418,7 @@ export class RoomHandler {
         if (user.admin) {
             this.emitNotice(socket, {message: 'You\'re already an admin!'});
         } else {
-            const configPassword = this.configService.get<string>('ADMIN_PASSWORD');
+            const configPassword = this.configService.adminPassword;
             console.log(configPassword, password);
             if (password === configPassword) {
                 user.admin = true;

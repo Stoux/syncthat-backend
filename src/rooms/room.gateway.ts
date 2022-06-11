@@ -1,17 +1,13 @@
 import {
     ConnectedSocket,
     MessageBody,
-    OnGatewayConnection,
     OnGatewayDisconnect,
     OnGatewayInit,
     SubscribeMessage,
     WebSocketGateway,
     WebSocketServer,
-    WsResponse
 } from "@nestjs/websockets";
 import { Socket, Server } from 'socket.io';
-import {RoomService} from "./room.service";
-import {RoomController} from "./room.controller";
 import {
     AddSong,
     BecomeAdmin,
@@ -24,7 +20,7 @@ import {
 } from "./room.messages";
 import {RoomHandler} from "./room.flow";
 import {SongsService} from "../songs/songs.service";
-import {ConfigService} from "@nestjs/config";
+import {ConfigService} from "../util/config.service";
 
 
 @WebSocketGateway({

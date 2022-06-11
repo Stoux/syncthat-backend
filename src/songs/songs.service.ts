@@ -1,7 +1,7 @@
-import {HttpException, HttpStatus, Injectable} from '@nestjs/common';
-import {ConfigService} from '@nestjs/config';
+import {Injectable} from '@nestjs/common';
 import {spawn, spawnSync} from 'child_process';
 import * as fs from "fs";
+import {ConfigService} from "../util/config.service";
 
 @Injectable()
 export class SongsService {
@@ -17,8 +17,8 @@ export class SongsService {
         progressCallback?: (result: DownloadResult) => void,
     ): DownloadResult {
 
-        const dir = this.configService.get<string>('DOWNLOAD_DIR');
-        const ytdlp = this.configService.get<string>('YT_DLP_PATH');
+        const dir = this.configService.downloadDir;
+        const ytdlp = this.configService.ytDlpPath;
 
         const dumpJson = spawnSync(ytdlp, [ '--dump-json', '-q', url ]);
         if (dumpJson.error) {
@@ -119,8 +119,8 @@ export class SongsService {
     }
 
     drawWaveForm(result: DownloadResult): boolean{
-        const audiowaveform = this.configService.get<string>('AUDIOWAVEFORM_PATH');
-        const dir = this.configService.get<string>('DOWNLOAD_DIR');
+        const audiowaveform = this.configService.audiowaveformPath;
+        const dir = this.configService.downloadDir;
 
         // Start geenratingtask
         const generateWaveform = spawn(audiowaveform, ['-i' ,result.key + '.mp3', '-o', result.key+".json"], {

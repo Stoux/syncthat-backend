@@ -74,8 +74,6 @@ export class Song {
     this.requestedAt = (new Date()).getTime();
 
     this.likedDisliked = {};
-
-
   }
 
 }

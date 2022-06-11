@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import {SongsModule} from "./songs/songs.module";
 import { RoomModule } from "./rooms/room.module";
+import {UtilModule} from "./util/util.module";
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { RoomModule } from "./rooms/room.module";
           envFilePath: [ '.env' ],
           isGlobal: true,
       }),
+      UtilModule,
       SongsModule,
       RoomModule,
   ],
