@@ -20,7 +20,9 @@ export class SongsService {
         const dir = this.configService.downloadDir;
         const ytdlp = this.configService.ytDlpPath;
 
-        const dumpJson = spawnSync(ytdlp, [ '--dump-json', '--no-warnings', '-q', url ]);
+        const dumpJson = spawnSync(ytdlp, [ '--dump-json', '--no-warnings', '-q', url ], {
+            maxBuffer: 100 * 1024 * 1024 /* 100MB */,
+        });
         if (dumpJson.error) {
             console.log(dumpJson.error, dumpJson.error);
             return new DownloadResult(
