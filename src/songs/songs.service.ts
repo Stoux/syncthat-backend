@@ -20,7 +20,7 @@ export class SongsService {
         const dir = this.configService.downloadDir;
         const ytdlp = this.configService.ytDlpPath;
 
-        const dumpJson = spawnSync(ytdlp, [ '--dump-json', '--no-warnings', '-q', url ], {
+        const dumpJson = spawnSync(ytdlp, [ '--dump-json', '--no-playlist',  '--no-warnings', '-q', url ], {
             maxBuffer: 100 * 1024 * 1024 /* 100MB */,
         });
         if (dumpJson.error) {
@@ -93,7 +93,7 @@ export class SongsService {
 
 
         // Start download task
-        const download = spawn(ytdlp, ['--extract-audio', '--no-warnings', '--audio-format', 'mp3', '-o', '%(extractor)s-%(id)s.mp3', url], {
+        const download = spawn(ytdlp, ['--extract-audio', '--no-warnings', '--no-playlist', '--audio-format', 'mp3', '-o', '%(extractor)s-%(id)s.mp3', url], {
             cwd: dir,
         });
 
