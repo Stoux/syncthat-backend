@@ -4,7 +4,7 @@ import * as fs from "fs";
 import {ConfigService} from "../util/config.service";
 import * as crypto from "crypto";
 import { basename } from 'path';
-import { get as httpGet } from 'https';
+import { get as httpGet, request as httpRequest } from 'https';
 import {parseFile} from "music-metadata";
 import {existsSync} from "fs";
 
@@ -150,7 +150,18 @@ export class SongsService {
     private async downloadMp3(url: string, progressCallback: (result: DownloadResult) => void): Promise<DownloadResult> {
         try {
             // Check if the file exists
-            const exists = (await fetch(url, { method: 'HEAD' })).ok;
+            const exists = await new Promise((resolve, reject) => {
+                const req = httpRequest(url, { method: 'HEAD'}, response => {
+                    if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                })
+
+                req.on('error', e => reject(e));
+                req.end();
+            });
             if (!exists) {
                 throw `[${url}] Bad response from HTTP server`;
             }
