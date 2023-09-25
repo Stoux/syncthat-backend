@@ -39,11 +39,13 @@ export class RoomController {
   addSong(@Param('id') id:number, @Body('url') url: string): Song {
     this.getRoom(id);
     const result = this.songsService.downloadSong(url);
-    if(!result.success){
-      throw new HttpException("Error trying to download song", 400);
-    }
-    const newSong = new Song(result.key, result.title, result.progress == 100, result.duration, undefined, undefined);
-    return this.roomService.addSongToRoom(id, newSong);
+    // TODO: Make this async?
+    return undefined;
+    // if(!result.success){
+    //   throw new HttpException("Error trying to download song", 400);
+    // }
+    // const newSong = new Song(result.key, result.title, result.progress == 100, result.duration, undefined, undefined);
+    // return this.roomService.addSongToRoom(id, newSong);
   }
 
   static generateDutchName() : string{

@@ -213,7 +213,7 @@ export class RoomHandler {
         return true;
     }
 
-    public queueSong(socket: Socket, message: AddSongMessage) {
+    public async queueSong(socket: Socket, message: AddSongMessage) {
         const user = this.getAdmin(socket);
         if (!user) return;
 
@@ -245,6 +245,9 @@ export class RoomHandler {
 
             // Update the status
             song.downloadProgress = result.progress;
+            song.durationInSeconds = result.duration;
+            song.title = result.title;
+            console.log({song, result, sr: song.songInfo});
             song.waveformGenerated = result.waveformGenerated === undefined ? false : result.waveformGenerated;
 
             song.ready = result.success === true;
@@ -257,18 +260,15 @@ export class RoomHandler {
 
             // Check if the current is us
             const currentSong = this.currentSong.get();
-            console.log('Current', currentSong ? currentSong.song : null);
             if (currentSong && currentSong.song && currentSong.song.key === result.key) {
                 console.log('Retrigger want current song, wats die progress tho', song.waveformGenerated);
                 this.currentSong.trigger();
             }
         };
 
-
-
-        const result = (() => {
+        const result = await (async () => {
             try {
-                return this.songService.downloadSong(message.url, downloadCallback);
+                return await this.songService.downloadSong(message.url, downloadCallback);
             } catch (e: any) {
                 console.error(e);
                 return null;
